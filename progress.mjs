@@ -7,7 +7,7 @@ export function blankTerm() {
 }
 
 export function freshProgress() {
-  return { version: 1, terms: {}, last: null, recent: [], milestones: { collections: [], all: false } };
+  return { version: 1, terms: {}, last: null, milestones: { collections: [], all: false } };
 }
 
 export function normaliseProgress(raw, data) {
@@ -34,7 +34,6 @@ export function normaliseProgress(raw, data) {
     const scope = migrated?.term_ids.includes(raw.last.id) ? String(migrated.id) : 'all';
     state.last = { id: raw.last.id, scope };
   }
-  if (Array.isArray(raw.recent)) state.recent = [...new Set(raw.recent.filter(id => known.has(id)))].slice(-5);
   const collectionIds = data.collections.map(collection => String(collection.id));
   if (Array.isArray(raw.milestones?.collections)) {
     state.milestones.collections = [...new Set(raw.milestones.collections.map(String).filter(id => collectionIds.includes(id)))];
@@ -87,11 +86,7 @@ export const isMastered = (state, id) => (state.terms[id]?.streak || 0) >= 2;
 export function markRead(state, id, scope) {
   const term = state.terms[id] ||= blankTerm();
   term.read = true;
-  // A newly selected collection starts its own recall checkpoint. A full
-  // buffer from another scope must not prevent further recall invitations.
-  if (state.last && state.last.scope !== scope) state.recent = [];
   state.last = { id, scope };
-  if (!state.recent.includes(id) && state.recent.length < 5) state.recent.push(id);
 }
 
 export function markFlash(state, id, remembered) {

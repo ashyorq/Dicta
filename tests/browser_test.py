@@ -212,46 +212,105 @@ with sync_playwright() as playwright:
     assert all(term['streak'] == 0 and term['reviewed'] == 0 for term in saved()['terms'].values())
     checks.append('All 51 unique terms, 46 Latin/5 Law French, full definitions/examples/notes, and no reading inflation')
 
-    # Local storage and periodic recall stay within the selected collection.
+    # Learn remains uninterrupted even beyond the former five-term checkpoint.
     clean()
     go(f'learn/{first["id"]}/{first["term_ids"][0]}')
-    for _ in range(4):
+    for index in range(1, 8):
         page.get_by_role('link', name='Next', exact=True).click()
-    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][4]]['term'])
-    expect(page.get_by_role('heading', name='A moment to recall?')).to_be_visible()
-    screenshot('learn')
-    page.get_by_role('link', name='Try 2 questions').click()
-    for question in range(2):
-        term = terms[heading()]
-        assert term['id'] in first['term_ids']
-        if question == 0:
-            page.locator(f'[data-answer]:not([data-answer="{term["id"]}"])').first.click()
-            expect(page.get_by_role('heading', name='Not quite. Here’s the meaning.')).to_be_visible()
-            page.get_by_role('button', name='Try again', exact=True).click()
-            page.locator(f'[data-answer="{term["id"]}"]').click()
-            assert saved()['terms'][term['id']]['streak'] == 0
-        else:
-            page.locator(f'[data-answer="{term["id"]}"]').click()
-            assert saved()['terms'][term['id']]['streak'] == 1
-        click_next()
-    page.get_by_role('link', name='Continue learning').click()
-    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][4]]['term'])
+        expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][index]]['term'])
+        assert not page.locator('.recall-panel').count()
+        assert 'A moment to recall' not in page.locator('main').inner_text()
+        assert not page.get_by_role('link', name='Try 2 questions').count()
+    assert 'recent' not in saved()
+    assert all(term['streak'] == 0 and term['reviewed'] == 0 for term in saved()['terms'].values())
     page.reload()
     ready()
-    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][4]]['term'])
+    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][7]]['term'])
     page.get_by_role('link', name='Previous', exact=True).click()
-    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][3]]['term'])
+    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][6]]['term'])
     page.evaluate('document.querySelector(".skip-link").click()')
     assert page.evaluate('document.activeElement.id') == 'main'
-    go(f'learn/{first["id"]}/{first["term_ids"][0]}')
-    for _ in range(4):
-        page.get_by_role('link', name='Next', exact=True).click()
-    go(f'learn/{second["id"]}/{second["term_ids"][0]}')
-    for _ in range(4):
-        page.get_by_role('link', name='Next', exact=True).click()
-    expect(page.get_by_role('heading', name='A moment to recall?')).to_be_visible()
-    assert set(saved()['recent']) == set(second['term_ids'][:5])
-    checks.append('Previous/Next, collection-scoped short recall, wrong-answer retry, reload, and skip-link focus')
+    go(f'recall/{first["id"]}')
+    expect(page.locator('h1')).to_have_text(first['title'])
+    expect(page.locator('.modes a')).to_have_count(3)
+    checks.append('Uninterrupted Learn, no recall prompts or queues, reload/Previous, and safe old recall bookmarks')
+
+    # Regressions for the page jumps: record actual scroll frames, not just CSS.
+    def settle_frames():
+        page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+
+    for width in [390, 1440]:
+        page.set_viewport_size({'width': width, 'height': 600})
+        go(f'learn/{first["id"]}/{first["term_ids"][0]}')
+        next_link = page.get_by_role('link', name='Next', exact=True)
+        next_link.scroll_into_view_if_needed()
+        settle_frames()
+        start_y = page.evaluate('scrollY')
+        assert start_y > 100, 'Exercise Next while scrolled down the reading page'
+        page.evaluate('''() => {
+            window.nextControl = document.querySelector('.study-nav a:last-child');
+            window.scrollFrames = [scrollY];
+            window.trackScroll = true;
+            function sample() {
+                if (!window.trackScroll) return;
+                window.scrollFrames.push(scrollY);
+                requestAnimationFrame(sample);
+            }
+            requestAnimationFrame(sample);
+        }''')
+        next_link.evaluate('(link) => link.click()')
+        assert abs(page.evaluate('scrollY') - start_y) <= 2, 'Next must not snap immediately to the top'
+        assert page.evaluate('window.nextControl === document.querySelector(".study-nav a:last-child")'), 'Reuse the existing Next control'
+        expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][1]]['term'])
+        page.wait_for_function('scrollY < 1')
+        frames = page.evaluate('() => { window.trackScroll = false; return window.scrollFrames.concat(scrollY); }')
+        assert any(2 < y < start_y - 2 for y in frames), 'New-term scroll should move smoothly through intermediate positions'
+        assert all(later <= earlier + 2 for earlier, later in zip(frames, frames[1:])), 'No back-and-forth shaking'
+        page.go_back()
+        ready()
+        expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][0]]['term'])
+        page.go_forward()
+        ready()
+        expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][1]]['term'])
+
+        go(f'flash/{first["id"]}')
+        page.locator('[data-action="reveal-flash"]').scroll_into_view_if_needed()
+        settle_frames()
+        page.evaluate('window.flashCard = document.querySelector(".flash-card")')
+        before_y = page.evaluate('scrollY')
+        before_title = page.locator('.flash-card h1').bounding_box()['y']
+        page.locator('[data-action="reveal-flash"]').evaluate('(button) => button.click()')
+        settle_frames()
+        assert abs(page.evaluate('scrollY') - before_y) <= 2, 'Revealing must not scroll the page'
+        assert abs(page.locator('.flash-card h1').bounding_box()['y'] - before_title) <= 2, 'Term stays in place when answer appears'
+        assert page.evaluate('window.flashCard === document.querySelector(".flash-card")')
+        page.locator('[data-action="flash-known"]').evaluate('(button) => button.click()')
+        settle_frames()
+        assert abs(page.evaluate('scrollY') - before_y) <= 2, 'Rating must not jump to feedback'
+
+        go(f'quiz/{first["id"]}')
+        page.locator('.choice').last.scroll_into_view_if_needed()
+        settle_frames()
+        before_y = page.evaluate('scrollY')
+        page.evaluate('window.quizChoice = document.querySelector(".choice")')
+        page.locator('.choice').last.evaluate('(button) => button.click()')
+        settle_frames()
+        assert abs(page.evaluate('scrollY') - before_y) <= 2, 'Quiz feedback must not force scrolling'
+        assert page.evaluate('window.quizChoice === document.querySelector(".choice")')
+        expect(page.locator('#feedback')).to_be_attached()
+        expect(page.locator('#storage-note')).to_contain_text('Your study progress is saved on this device.')
+    page.set_viewport_size({'width': 390, 'height': 844})
+    checks.append('Mobile/desktop smooth monotonic Next navigation, stable controls/reveal/feedback, and browser Back/Forward')
+
+    # An immediate correction is useful practice and never grants mastery.
+    clean()
+    go(f'quiz/{first["id"]}')
+    retry_id = terms[heading()]['id']
+    page.locator(f'[data-answer]:not([data-answer="{retry_id}"])').first.click()
+    page.get_by_role('button', name='Try again', exact=True).click()
+    page.locator(f'[data-answer="{retry_id}"]').click()
+    assert saved()['terms'][retry_id]['streak'] == 0
+    checks.append('Incorrect Quiz answer retry remains practice, not mastery')
 
     # Keyboard-accessible flashcards repeat forgotten cards and end finitely.
     clean()
@@ -368,7 +427,7 @@ with sync_playwright() as playwright:
     migrated = saved()
     assert migrated['terms'] == legacy['terms']
     assert migrated['last'] == {'id': first['term_ids'][0], 'scope': first['id']}
-    assert set(migrated['recent']) == set(legacy['recent'])
+    assert 'recent' not in migrated, 'Removed recall queues must not survive migration'
     assert not migrated['milestones']['collections'], 'Small former milestones cannot imply mastery of broader collections'
     assert migrated['milestones']['all'] is False
     checks.append('Old numeric scopes migrate without losing per-term read/review/recall counters or granting broad milestones')

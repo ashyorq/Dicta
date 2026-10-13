@@ -1,16 +1,19 @@
 import {
   loadProgress, saveProgress, markRead, markFlash, markRecall,
   isMastered, earnedEncouragement, consumeWelcome,
-} from './progress.mjs?v=2';
-import { validateDataset, shuffle, quizChoices, createFlashSession, rateFlash, flashSummary } from './study.mjs?v=2';
+} from './progress.mjs?v=3';
+import { validateDataset, shuffle, quizChoices, createFlashSession, rateFlash, flashSummary } from './study.mjs?v=3';
+import { updateView, scrollToStart } from './view.mjs?v=3';
 
 const main = document.querySelector('#main');
 const storageNote = document.querySelector('#storage-note');
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const plural = (number, noun) => `${number} ${noun}${number === 1 ? '' : 's'}`;
 const diagonalArrow = '<svg class="arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12" stroke="currentColor" stroke-width="1.5"/></svg>';
 let data, byId, state, storage, flash, quiz;
 let activeView = '', learnDone = false;
+let activeScope = '', renderedHash = '';
 let welcomeChecked = false;
 const sessionMessages = new Set();
 const otherSubjects = { 'public-law': 'Public Law', 'civil-law': 'Civil Law', 'tort-law': 'Tort Law' };
@@ -34,7 +37,7 @@ const button = (label, action, secondary = false) => `<button class="button${sec
 const linkButton = (label, href, secondary = false) => `<a class="button${secondary ? ' secondary' : ''}" href="${href}">${label}</a>`;
 const encouragement = message => message ? `<aside class="encouragement" aria-label="Fictional app encouragement"><p>${escape(message)}</p><small>Playful, fictional app encouragement — not a quotation or a message from your teacher.</small></aside>` : '';
 const masteredCount = ids => ids.filter(id => isMastered(state, id)).length;
-const masteryNote = '<details class="progress-info"><summary>How progress works</summary><p>Mastery means two correct quiz or short recall answers in a row. Reading, flashcard self-ratings, and immediate retries do not add mastery.</p></details>';
+const masteryNote = '<details class="progress-info"><summary>How progress works</summary><p>Mastery means two correct quiz answers in a row. Reading, flashcard self-ratings, and immediate retries do not add mastery.</p></details>';
 
 function modeLinks(scope) {
   return `<nav class="modes" aria-label="Study modes">
@@ -91,12 +94,10 @@ function learnView(scope, id) {
   }
   markRead(state, id, scope);
   persist();
-  const recallReady = state.recent.length >= 5 && state.recent.filter(recent => ids.includes(recent)).length >= 2;
   return `<div class="reading-width">${back(scopeBack(scope), scopeName(scope))}
     <div class="study-heading"><p class="eyebrow">Learn</p><span>Term ${index + 1} of ${ids.length}</span></div><progress value="${index + 1}" max="${ids.length}" aria-label="Term position"></progress>
     <p class="term-meta">${escape(term.collection)} · ${escape(term.language)}</p><h1 class="term-name" tabindex="-1">${escape(term.term)}</h1>
     ${definitionView(term)}
-    ${recallReady ? `<section class="recall-panel"><h2>A moment to recall?</h2><p>You've met five terms. Try two short questions from what you've just read.</p><div class="actions">${linkButton('Try 2 questions', `#recall/${scope}`)}${button('Keep learning', 'skip-recall', true)}</div></section>` : ''}
     <nav class="study-nav" aria-label="Term navigation">${index ? linkButton('<span aria-hidden="true">←</span> Previous', `#learn/${scope}/${ids[index - 1]}`, true) : '<button class="button secondary" type="button" disabled>← Previous</button>'}
       ${index + 1 < ids.length ? linkButton('Next <span aria-hidden="true">→</span>', `#learn/${scope}/${ids[index + 1]}`) : button('Finish reading', 'finish-learn')}</nav>
     <p class="study-help">Definitions are from your university handout. Explanations, examples, and notes are supplementary study aids; check jurisdiction-specific details with your lecturer.</p></div>`;
@@ -117,49 +118,46 @@ function flashView(scope) {
     ${!flash.revealed ? button('Reveal answer', 'reveal-flash').replace('class="button"', 'class="button reveal-button"') : ''}
     ${flash.revealed && !feedback ? `<div class="flash-controls">${button('Study again', 'flash-again', true)}${button('I knew it', 'flash-known')}</div><p class="study-help">Be honest with yourself. Flipping a card never counts as a review.</p>` : ''}
     ${feedback ? `<section class="feedback${feedback.remembered ? '' : ' incorrect'}" aria-live="polite" tabindex="-1" id="feedback"><h2>${feedback.remembered ? 'Remembered.' : 'A little more practice.'}</h2><p>${feedback.remembered ? 'A useful moment of recall. Keep going at your own pace.' : feedback.repeats ? 'This card will return later in this session.' : 'Keep this term in mind for your next study session.'}</p>${encouragement(feedback.message)}${button(flash.position + 1 >= flash.queue.length ? 'Finish session' : 'Next card →', 'next-flash')}</section>` : ''}
-    <p class="study-help">${info.remembered} remembered · Forgotten cards return up to twice. Mastery is checked in Quiz or short recall.</p></div>`;
+    <p class="study-help">${info.remembered} remembered · Forgotten cards return up to twice. Mastery is checked in Quiz.</p></div>`;
 }
 
-function createQuiz(scope, ids, recall = false, practice = false) {
-  return { scope, ids: shuffle(ids), recall, practice, position: 0, choices: null, answer: null, retrying: false, firstCorrect: new Set(), missed: new Set(), corrected: new Set(), message: '' };
+function createQuiz(scope, ids, practice = false) {
+  return { scope, ids: shuffle(ids), practice, position: 0, choices: null, answer: null, retrying: false, firstCorrect: new Set(), missed: new Set(), corrected: new Set(), message: '' };
 }
 
 function quizView(scope) {
-  const isRecall = quiz.recall;
   if (quiz.position >= quiz.ids.length) {
-    if (isRecall) { state.recent = []; persist(); }
-    return `<div class="reading-width">${back(scopeBack(scope), scopeName(scope))}<p class="eyebrow">${isRecall ? 'Short recall' : 'Quiz'} · Complete</p><h1 tabindex="-1">${quiz.firstCorrect.size === quiz.ids.length ? 'The meanings are taking shape.' : 'Practice makes it clearer.'}</h1>
-      <div class="summary-card"><h2>${quiz.practice ? 'Practice complete.' : `${quiz.firstCorrect.size} of ${quiz.ids.length} correct on the first try.`}</h2><p>${quiz.corrected.size ? `${plural(quiz.corrected.size, 'answer')} corrected with practice. ` : ''}${quiz.missed.size ? 'Revisit the terms that felt less familiar.' : 'A little recall goes a long way.'}</p><p class="small">${quiz.practice ? 'Retries help you practise; they do not add mastery.' : 'Two correct recall answers in a row demonstrate mastery. Reading or viewing a question does not.'}</p></div>
-      <div class="actions">${isRecall ? linkButton('Continue learning →', learnHref()) : button('Quiz again', 'restart-quiz')}${quiz.missed.size && !isRecall ? button('Retry missed terms', 'retry-missed', true) : ''}${linkButton('Back to module', '#legal-skills', true)}</div></div>`;
+    return `<div class="reading-width">${back(scopeBack(scope), scopeName(scope))}<p class="eyebrow">Quiz · Complete</p><h1 tabindex="-1">${quiz.firstCorrect.size === quiz.ids.length ? 'The meanings are taking shape.' : 'Practice makes it clearer.'}</h1>
+      <div class="summary-card"><h2>${quiz.practice ? 'Practice complete.' : `${quiz.firstCorrect.size} of ${quiz.ids.length} correct on the first try.`}</h2><p>${quiz.corrected.size ? `${plural(quiz.corrected.size, 'answer')} corrected with practice. ` : ''}${quiz.missed.size ? 'Revisit the terms that felt less familiar.' : 'A little recall goes a long way.'}</p><p class="small">${quiz.practice ? 'Retries help you practise; they do not add mastery.' : 'Two correct quiz answers in a row demonstrate mastery. Reading or viewing a question does not.'}</p></div>
+      <div class="actions">${button('Quiz again', 'restart-quiz')}${quiz.missed.size ? button('Retry missed terms', 'retry-missed', true) : ''}${linkButton('Back to module', '#legal-skills', true)}</div></div>`;
   }
   const id = quiz.ids[quiz.position], term = byId.get(id);
   quiz.choices ||= quizChoices(data, id);
   const correct = quiz.answer === id;
-  return `<div class="reading-width quiz">${back(isRecall ? learnHref() : scopeBack(scope), isRecall ? 'Back to learning' : scopeName(scope))}
-    <div class="study-heading"><p class="eyebrow">${isRecall ? 'Short recall' : 'Quiz'}${quiz.practice ? ' · Practice' : ''}</p><span>Question ${quiz.position + 1} of ${quiz.ids.length}</span></div><progress value="${quiz.position + 1}" max="${quiz.ids.length}" aria-label="Question position"></progress>
+  return `<div class="reading-width quiz">${back(scopeBack(scope), scopeName(scope))}
+    <div class="study-heading"><p class="eyebrow">Quiz${quiz.practice ? ' · Practice' : ''}</p><span>Question ${quiz.position + 1} of ${quiz.ids.length}</span></div><progress value="${quiz.position + 1}" max="${quiz.ids.length}" aria-label="Question position"></progress>
     <p class="term-meta">${escape(scopeTitle(scope))}${quiz.retrying ? ' · Try again' : ''}</p><p class="quiz-prompt">Which meaning belongs to this term?</p><h1 class="term-name" tabindex="-1">${escape(term.term)}</h1>
     <div class="choices" role="group" aria-label="Choose the meaning">${quiz.choices.map((choice, index) => {
       const result = quiz.answer ? choice.id === id ? ' correct' : choice.id === quiz.answer ? ' incorrect' : '' : '';
       return `<button type="button" class="choice${result}" data-answer="${choice.id}" ${quiz.answer ? 'disabled' : ''}><span class="choice-letter" aria-hidden="true">${String.fromCharCode(65 + index)}</span><span>${escape(choice.simple_explanation)}${result ? `<span class="choice-state">${result === ' correct' ? 'Correct meaning' : 'Your answer — try again'}</span>` : ''}</span></button>`;
     }).join('')}</div>
     ${quiz.answer ? `<section class="feedback${correct ? '' : ' incorrect'}" id="feedback" tabindex="-1" aria-live="polite"><h2>${correct ? quiz.retrying || quiz.practice ? 'Correct. A useful practice.' : 'Correct. Nicely recalled.' : 'Not quite. Here’s the meaning.'}</h2><p><strong>${escape(term.term)}:</strong> ${escape(term.university_definition)}</p><p>${escape(term.simple_explanation)}</p>${encouragement(quiz.message)}<div class="actions">${correct ? button(quiz.position + 1 === quiz.ids.length ? 'Finish' : 'Next question →', 'next-question') : `${button('Try again', 'retry-question')}${button(quiz.position + 1 === quiz.ids.length ? 'Finish' : 'Next question', 'next-question', true)}`}</div></section>` : '<p class="study-help">Take a moment to recall. Only your answer can add recall progress.</p>'}
-    ${isRecall ? `<div style="margin-top: 20px">${button('Keep learning', 'leave-recall', true)}</div>` : ''}</div>`;
-}
-
-function learnHref() {
-  return state.last ? `#learn/${state.last.scope}/${state.last.id}` : `#learn/all/${scopeIds('all')[0]}`;
+    </div>`;
 }
 
 function routeParts() {
   const parts = location.hash.slice(1).split('/');
-  const view = parts[0] || 'home';
   const scope = parts[1] === 'all' || data.collections.some(item => String(item.id) === parts[1]) ? parts[1] : 'all';
+  const requestedView = parts[0] || 'home';
+  // Old recall bookmarks now open the collection instead of a recall check.
+  const view = requestedView === 'recall' ? scope === 'all' ? 'legal-skills' : 'collection' : requestedView;
   const ids = scopeIds(scope);
   return { view, scope, id: ids.includes(parts[2]) ? parts[2] : ids[0] };
 }
 
 function render(focus = true) {
   const { view, scope, id } = routeParts();
+  const preserve = view === activeView && scope === activeScope && ['learn', 'flash', 'quiz'].includes(view);
   let content;
   if (view === 'legal-skills') content = moduleView();
   else if (view === 'subject' && otherSubjects[location.hash.split('/')[1]]) content = subjectView(location.hash.split('/')[1]);
@@ -168,32 +166,31 @@ function render(focus = true) {
   else if (view === 'flash') {
     if (!flash || activeView !== view || flash.scope !== scope) flash = { ...createFlashSession(scopeIds(scope)), scope };
     content = flashView(scope);
-  } else if (view === 'quiz' || view === 'recall') {
+  } else if (view === 'quiz') {
     if (!quiz || activeView !== view || quiz.scope !== scope) {
-      const recent = state.recent.filter(term => scopeIds(scope).includes(term)).slice(-2);
-      const recallIds = recent.length ? recent : [state.last?.id].filter(term => scopeIds(scope).includes(term));
-      quiz = createQuiz(scope, view === 'recall' ? recallIds.length ? recallIds : scopeIds(scope).slice(0, 2) : scopeIds(scope), view === 'recall');
+      quiz = createQuiz(scope, scopeIds(scope));
     }
     content = quizView(scope);
   } else content = homeView();
   activeView = view;
-  main.innerHTML = content;
+  activeScope = scope;
+  renderedHash = location.hash;
+  updateView(main, content, preserve);
   main.setAttribute('aria-busy', 'false');
   document.title = view === 'home' ? 'Dicta' : `Dicta — ${view === 'legal-skills' ? 'Legal Skills' : view === 'subject' ? otherSubjects[location.hash.split('/')[1]] || 'Subjects' : scopeTitle(scope)}`;
   if (focus) {
     main.querySelector('h1')?.focus({ preventScroll: true });
-    window.scrollTo(0, 0);
+    scrollToStart();
   }
 }
 
 function focusFeedback() {
   document.querySelector('#feedback')?.focus({ preventScroll: true });
-  document.querySelector('#feedback')?.scrollIntoView({ block: 'nearest' });
 }
 
 main.addEventListener('click', event => {
   const answer = event.target.closest('[data-answer]');
-  if (answer && quiz && !quiz.answer && (activeView === 'quiz' || activeView === 'recall')) {
+  if (answer && quiz && !quiz.answer && activeView === 'quiz') {
     const id = quiz.ids[quiz.position], selected = answer.dataset.answer;
     if (!quiz.choices.some(choice => choice.id === selected)) return;
     const correct = selected === id;
@@ -210,11 +207,9 @@ main.addEventListener('click', event => {
   if (!action) return;
   const { scope } = routeParts();
   switch (action) {
-    case 'skip-recall': state.recent = []; persist(); render(false); main.querySelector('.study-nav a:last-child, .study-nav button:last-child')?.focus(); break;
     case 'finish-learn': learnDone = true; render(); break;
-    case 'leave-recall': state.recent = []; persist(); location.hash = learnHref(); break;
     case 'reveal-flash':
-      flash.revealed = true; render(false); main.querySelector('[data-action="flash-again"]')?.focus(); break;
+      flash.revealed = true; render(false); main.querySelector('[data-action="flash-again"]')?.focus({ preventScroll: true }); break;
     case 'flash-again':
     case 'flash-known': {
       const remembered = action === 'flash-known';
@@ -232,7 +227,7 @@ main.addEventListener('click', event => {
     case 'retry-question': quiz.retrying = true; quiz.answer = null; quiz.message = ''; quiz.choices = quizChoices(data, quiz.ids[quiz.position]); render(); break;
     case 'next-question': quiz.position++; quiz.answer = null; quiz.retrying = false; quiz.choices = null; quiz.message = ''; render(); break;
     case 'restart-quiz': quiz = createQuiz(scope, scopeIds(scope)); render(); break;
-    case 'retry-missed': quiz = createQuiz(scope, [...quiz.missed], false, true); render(); break;
+    case 'retry-missed': quiz = createQuiz(scope, [...quiz.missed], true); render(); break;
   }
 });
 
@@ -242,11 +237,27 @@ document.querySelector('.skip-link').addEventListener('click', event => {
   main.scrollIntoView({ block: 'start' });
 });
 
-window.addEventListener('hashchange', () => { if (data) { learnDone = false; render(); } });
+document.addEventListener('click', event => {
+  const link = event.target.closest('a[href^="#"]');
+  if (!data || !link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  const hash = link.getAttribute('href');
+  if (hash === location.hash) return;
+  // History routing avoids Safari's native fragment scrolling racing our UI.
+  history.pushState(null, '', hash);
+  learnDone = false;
+  render();
+});
+
+function restoreRoute() {
+  if (data && location.hash !== renderedHash) { learnDone = false; render(); }
+}
+window.addEventListener('popstate', restoreRoute);
+window.addEventListener('hashchange', restoreRoute);
 
 async function initialise() {
   try {
-    const response = await fetch('./dicta_terms.json?v=2');
+    const response = await fetch('./dicta_terms.json?v=3');
     if (!response.ok) throw new Error(`Dataset request failed: ${response.status}`);
     data = validateDataset(await response.json());
     byId = new Map(data.terms.map(term => [term.id, term]));

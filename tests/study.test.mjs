@@ -119,14 +119,15 @@ test('mastery requires two successful recall answers; a miss resets it and immed
   assert.equal(state.terms['a-priori'].streak, 0);
 });
 
-test('reading remembers the last view and offers recall after five distinct terms', () => {
+test('reading saves the last view without reviews, mastery, or a recall queue', () => {
   const state = freshProgress();
   for (const id of ids.slice(0, 5)) { markRead(state, id, 'foundations'); markRead(state, id, 'foundations'); }
-  assert.equal(state.recent.length, 5);
+  assert.equal('recent' in state, false);
   assert.deepEqual(state.last, { id: ids[4], scope: 'foundations' });
   assert.equal(masteredCount(state), 0);
   for (const id of data.collections[1].term_ids) markRead(state, id, 'courts');
-  assert.deepEqual(state.recent, data.collections[1].term_ids.slice(0, 5), 'A new collection must not inherit another collection’s pending recall');
+  assert.deepEqual(state.last, { id: data.collections[1].term_ids.at(-1), scope: 'courts' });
+  assert.equal(masteredCount(state), 0);
 });
 
 function masteredCount(state) { return ids.filter(id => isMastered(state, id)).length; }
@@ -157,7 +158,7 @@ test('progress survives serialization and incomplete, corrupt, future, and unava
   const partial = normaliseProgress({ terms: { 'de-jure': { read: true, mastered: true, reviewed: -4, remembered: 500, correct: 1, streak: 90 }, unknown: { read: true } }, last: { id: 'de-jure', scope: 'courts' }, recent: ['unknown', 'de-jure', 'de-jure'] }, data);
   assert.deepEqual(Object.keys(partial.terms), ['de-jure']);
   assert.deepEqual(partial.last, { id: 'de-jure', scope: 'all' });
-  assert.deepEqual(partial.recent, ['de-jure']);
+  assert.equal('recent' in partial, false, 'Obsolete recall queues are dropped from older progress');
   assert.equal(partial.terms['de-jure'].reviewed, 0);
   assert.equal(partial.terms['de-jure'].remembered, 0);
   assert.equal(partial.terms['de-jure'].streak, 1);
@@ -180,7 +181,7 @@ test('old numeric collection scopes migrate by term membership while v1 progress
     const migrated = normaliseProgress({ version: 1, terms: { [id]: term }, last: { id, scope }, recent: [id], milestones: { collections: [1, '2', 3, 'courts', 'unknown'], all: true } }, data);
     assert.deepEqual(migrated.terms[id], term);
     assert.deepEqual(migrated.last, { id, scope: expected });
-    assert.deepEqual(migrated.recent, [id]);
+    assert.equal('recent' in migrated, false);
     assert.deepEqual(migrated.milestones.collections, ['courts'], 'A small former collection milestone must not count for a broader replacement');
     assert.equal(migrated.milestones.all, true);
   }

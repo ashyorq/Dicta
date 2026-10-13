@@ -1,5 +1,8 @@
 export function validateDataset(data) {
-  if (data?.collections?.length !== 9 || data?.terms?.length !== 51) throw new Error('Expected 51 terms in nine collections.');
+  if (data?.collections?.length !== 3 || data?.terms?.length !== 51 || data?.metadata?.collections !== 3) {
+    throw new Error('Expected 51 terms in three collections.');
+  }
+  if (new Set(data.collections.map(collection => collection.id)).size !== 3) throw new Error('Collection IDs must be unique.');
   const terms = new Map(data.terms.map(term => [term.id, term]));
   const ids = data.collections.flatMap(collection => collection.term_ids);
   if (terms.size !== 51 || ids.length !== 51 || new Set(ids).size !== 51 || ids.some(id => !terms.has(id))) {
@@ -53,9 +56,11 @@ export function quizChoices(data, id, random = Math.random) {
   const related = new Set(meaningGroups.filter(group => group.includes(id)).flat());
   related.delete(id);
   const neighbours = shuffle(data.terms.filter(term => related.has(term.id)), random);
-  const peers = shuffle(data.terms.filter(term => term.id !== id && term.collection === target.collection && !related.has(term.id)), random);
+  const topic = target.topic || target.collection;
+  const topicPeers = shuffle(data.terms.filter(term => term.id !== id && (term.topic || term.collection) === topic && !related.has(term.id)), random);
+  const peers = shuffle(data.terms.filter(term => term.id !== id && term.collection === target.collection && (term.topic || term.collection) !== topic && !related.has(term.id)), random);
   const remaining = shuffle(data.terms.filter(term => term.id !== id && !related.has(term.id) && term.collection !== target.collection), random);
-  const candidates = [...neighbours, ...peers, ...remaining];
+  const candidates = [...neighbours, ...topicPeers, ...peers, ...remaining];
   const answers = [target];
   for (const candidate of candidates) {
     if (!answers.some(term => term.simple_explanation === candidate.simple_explanation)) answers.push(candidate);

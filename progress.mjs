@@ -1,4 +1,5 @@
 export const STORAGE_KEY = 'dicta.progress.v1';
+export const WELCOME_KEY = 'dicta.welcome.v1';
 const count = value => Number.isSafeInteger(value) && value >= 0 ? Math.min(value, 1000000) : 0;
 
 export function blankTerm() {
@@ -26,7 +27,11 @@ export function normaliseProgress(raw, data) {
   }
   if (raw.last && known.has(raw.last.id)) {
     const collection = data.collections.find(item => String(item.id) === String(raw.last.scope));
-    const scope = collection?.term_ids.includes(raw.last.id) ? String(collection.id) : 'all';
+    // Original releases used nine numeric collection IDs. Locate their new
+    // collection by the saved term rather than reusing an unrelated ID.
+    const legacy = /^[1-9]$/.test(String(raw.last.scope));
+    const migrated = legacy ? data.collections.find(item => item.term_ids.includes(raw.last.id)) : collection;
+    const scope = migrated?.term_ids.includes(raw.last.id) ? String(migrated.id) : 'all';
     state.last = { id: raw.last.id, scope };
   }
   if (Array.isArray(raw.recent)) state.recent = [...new Set(raw.recent.filter(id => known.has(id)))].slice(-5);
@@ -59,6 +64,22 @@ export function saveProgress(storage, state) {
   } catch {
     return false;
   }
+}
+
+// Call when Home is actually presented. Keep the caller's result for the page
+// lifetime so blocked storage cannot cause the greeting to reappear on return.
+export function consumeWelcome(storage) {
+  try {
+    if (storage.getItem(WELCOME_KEY) !== null) return false;
+  } catch { /* Storage may be unavailable in a private browsing session. */ }
+  let existingProgress = false;
+  try {
+    existingProgress = storage.getItem(STORAGE_KEY) !== null;
+  } catch { /* A first presentation can still show the greeting safely. */ }
+  try {
+    storage.setItem(WELCOME_KEY, 'shown');
+  } catch { /* The caller keeps this presentation consumed in memory. */ }
+  return !existingProgress;
 }
 
 export const isMastered = (state, id) => (state.terms[id]?.streak || 0) >= 2;

@@ -6,8 +6,11 @@ Run against a static server, including a repository subpath:
 """
 import argparse
 import json
+import re
 import shutil
+import struct
 from pathlib import Path
+from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright, expect
 
 parser = argparse.ArgumentParser()
@@ -17,8 +20,24 @@ parser.add_argument('--screenshots', type=Path)
 args = parser.parse_args()
 data = json.loads((Path(__file__).resolve().parents[1] / 'dicta_terms.json').read_text())
 terms = {term['term']: term for term in data['terms']}
+by_id = {term['id']: term for term in data['terms']}
+collections = data['collections']
+term_count = len(by_id)
+first, second = collections[:2]
 key = 'dicta.progress.v1'
+welcome_key = 'dicta.welcome.v1'
+intro = re.compile(r'A little practice\.\s*A lasting understanding\.')
 checks = []
+
+assert len(data['terms']) == len(terms) == term_count == 51
+assert [(item['id'], len(item['term_ids'])) for item in collections] == [
+    ('foundations', 21), ('courts', 13), ('substantive', 17),
+]
+ordered_ids = [term_id for item in collections for term_id in item['term_ids']]
+assert len(ordered_ids) == len(set(ordered_ids)) == term_count
+assert set(ordered_ids) == set(by_id)
+assert sum(term['language'] == 'Latin' for term in data['terms']) == 46
+assert sum(term['language'] == 'Law French' for term in data['terms']) == 5
 
 with sync_playwright() as playwright:
     options = {'headless': True}
@@ -28,16 +47,23 @@ with sync_playwright() as playwright:
     context = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     page = context.new_page()
     errors, bad_responses, external_requests = [], [], []
-    page.on('pageerror', lambda error: errors.append(str(error)))
-    page.on('response', lambda response: bad_responses.append(response.url) if response.status >= 400 else None)
-    page.on('request', lambda request: external_requests.append(request.url) if not request.url.startswith(args.base_url) else None)
+
+    def monitor(target):
+        target.on('pageerror', lambda error: errors.append(str(error)))
+        target.on('response', lambda response: bad_responses.append(response.url) if response.status >= 400 else None)
+        target.on('request', lambda request: external_requests.append(request.url) if not request.url.startswith(args.base_url) else None)
+
+    monitor(page)
+
+    def ready(target=page):
+        expect(target.locator('main')).to_have_attribute('aria-busy', 'false')
 
     def go(fragment='home'):
         page.goto(args.base_url + '#' + fragment)
-        # A hash-only goto may reuse the current document. Reload explicitly
-        # so direct-entry and saved-state checks exercise a fresh application.
+        # Reload explicitly so direct-entry and saved-state checks exercise a
+        # fresh application even when a hash-only goto reuses the document.
         page.reload()
-        expect(page.locator('main')).to_have_attribute('aria-busy', 'false')
+        ready()
 
     def clean():
         page.evaluate('(key) => localStorage.removeItem(key)', key)
@@ -50,56 +76,154 @@ with sync_playwright() as playwright:
         return page.locator('h1').inner_text()
 
     def click_next():
-        next_button = page.locator('[data-action="next-question"]')
-        next_button.click()
+        page.locator('[data-action="next-question"]').click()
 
     def screenshot(name):
         if args.screenshots:
             args.screenshots.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(args.screenshots / f'{args.browser}-{name}.png'), full_page=True)
 
-    go()
-    expect(page.get_by_role('link', name='Legal Skills Latin & Law French · 51 terms')).to_be_visible()
+    # A first Home presentation consumes the welcome without creating progress.
+    page.goto(args.base_url + '#home')
+    ready()
+    expect(page.locator('.wordmark')).to_have_text('Dicta')
+    assert page.title().startswith('Dicta')
+    assert len(intro.findall(page.locator('body').inner_text())) == 1
+    assert page.evaluate('(key) => localStorage.getItem(key) !== null', welcome_key)
+    assert saved() is None
     assert page.locator('.subject').count() == 4
-    assert page.locator('.subject.active').count() == 1
+    assert page.locator('a.subject').count() == 4
     assert 'Mr Meyirbek' not in page.locator('body').inner_text()
-    screenshot('home')
-    page.locator('.subject.active').click()
-    assert page.locator('.collection-row').count() == 9
-    assert page.locator('.collection-info h3').all_text_contents() == [item['title'] for item in data['collections']]
-    screenshot('module')
-    checks.append('Home, inactive subjects, and nine ordered collections')
+    for removed in ['Your study space', 'A quiet place to learn law', 'Make the language of law feel familiar',
+                    'Start with Legal Skills', '01 / 04 available']:
+        assert removed.lower() not in page.locator('body').inner_text().lower()
+    install = page.locator('details.install-help')
+    expect(install.locator('summary')).to_have_text('Add Dicta to your phone')
+    assert not install.evaluate('(el) => el.open')
+    install.locator('summary').click()
+    instructions = install.inner_text().lower()
+    for instruction in ['iphone', 'safari', 'share', 'add to home screen', 'open as web app', 'android', 'install app']:
+        assert instruction in instructions
+    install.locator('summary').click()
+    screenshot('home-first-visit')
 
-    # Every term is reachable and renders the untouched authoritative fields.
-    for collection in data['collections']:
+    for name, fragment in [('Public Law', 'public-law'), ('Civil Law', 'civil-law'), ('Tort Law', 'tort-law')]:
+        page.locator(f'a.subject[href="#subject/{fragment}"]').click()
+        expect(page.locator('h1')).to_have_text(name)
+        expect(page.get_by_text('Coming soon', exact=True)).to_be_visible()
+        page.locator('main a[href="#home"]').click()
+        assert not intro.search(page.locator('body').inner_text())
+    page.reload()
+    ready()
+    assert not intro.search(page.locator('body').inner_text())
+    screenshot('home-returning')
+    page.locator('a.subject[href="#legal-skills"]').click()
+    expect(page.locator('h1')).to_have_text('Latin and Law French Terms')
+    assert page.locator('.collection-row').count() == len(collections)
+    assert page.locator('.collection-info :is(h2, h3)').all_text_contents() == [item['title'] for item in collections]
+    assert not page.locator('.modes, .continue-card').count()
+    assert 'Study Your Way' not in page.locator('main').inner_text()
+    assert 'Continue Learning' not in page.locator('main').inner_text()
+    # No intervening content block between the module title and its collections.
+    assert page.locator('h1').evaluate('''el => {
+        let container = el;
+        while (container !== document.querySelector('main') && !container.nextElementSibling) container = container.parentElement;
+        const next = container.nextElementSibling;
+        return !!next && (next.matches('.collections') || !!next.querySelector('.collection-row'));
+    }''')
+    screenshot('module')
+    for collection in collections:
+        go(f'collection/{collection["id"]}')
+        expect(page.locator('h1')).to_have_text(collection['title'])
+        assert page.locator('.modes a').count() == 3
+        assert [href.split('/')[0] for href in page.locator('.modes a').evaluate_all('(links) => links.map(link => link.getAttribute("href"))')] == ['#learn', '#flash', '#quiz']
+        assert not page.locator('.term-list').count()
+    checks.append('Minimal Dicta home/module, four accessible subjects, and exactly three content collections')
+
+    # Direct module entry must not prematurely consume a first-visit Home intro.
+    direct = browser.new_context(viewport={'width': 390, 'height': 844})
+    direct_page = direct.new_page()
+    monitor(direct_page)
+    direct_page.goto(args.base_url + '#legal-skills')
+    ready(direct_page)
+    direct_page.locator('main a[href="#home"]').click()
+    assert intro.search(direct_page.locator('body').inner_text())
+    direct.close()
+    returning = browser.new_context(viewport={'width': 390, 'height': 844})
+    returning.add_init_script('localStorage.setItem("dicta.progress.v1", JSON.stringify({version: 1, terms: {}, last: null, recent: [], milestones: {collections: [], all: false}}))')
+    returning_page = returning.new_page()
+    monitor(returning_page)
+    returning_page.goto(args.base_url + '#home')
+    ready(returning_page)
+    assert not intro.search(returning_page.locator('body').inner_text())
+    returning.close()
+    standalone = browser.new_context(viewport={'width': 390, 'height': 844})
+    standalone.add_init_script('Object.defineProperty(navigator, "standalone", {get() {return true;}})')
+    standalone_page = standalone.new_page()
+    monitor(standalone_page)
+    standalone_page.goto(args.base_url + '#home')
+    ready(standalone_page)
+    expect(standalone_page.locator('details.install-help')).to_be_hidden()
+    standalone.close()
+    checks.append('Welcome shown once, returning progress recognized, and phone instructions hidden in standalone mode')
+
+    # Install metadata and all its relative assets work beneath /Dicta/.
+    manifest_href = page.locator('link[rel="manifest"]').get_attribute('href')
+    assert manifest_href and not manifest_href.startswith(('/', 'http:', 'https:'))
+    manifest_response = page.request.get(urljoin(args.base_url, manifest_href))
+    assert manifest_response.ok
+    manifest = manifest_response.json()
+    assert manifest['name'] == manifest['short_name'] == 'Dicta'
+    assert manifest['display'] == 'standalone'
+    assert urljoin(args.base_url, manifest['scope']) == args.base_url
+    assert urljoin(args.base_url, manifest['start_url']).split('#')[0] == args.base_url
+    icon_sizes = set()
+    for icon in manifest['icons']:
+        assert not icon['src'].startswith(('/', 'http:', 'https:'))
+        response = page.request.get(urljoin(args.base_url, icon['src']))
+        assert response.ok
+        image = response.body()
+        assert image[:8] == b'\x89PNG\r\n\x1a\n'
+        width, height = struct.unpack('>II', image[16:24])
+        assert icon['sizes'] == f'{width}x{height}'
+        icon_sizes.add((width, height))
+    assert {(192, 192), (512, 512)} <= icon_sizes
+    expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).to_have_attribute('content', 'yes')
+    expect(page.locator('meta[name="apple-mobile-web-app-title"]')).to_have_attribute('content', 'Dicta')
+    apple_icon = page.locator('link[rel="apple-touch-icon"]').get_attribute('href')
+    response = page.request.get(urljoin(args.base_url, apple_icon))
+    assert response.ok and struct.unpack('>II', response.body()[16:24]) == (180, 180)
+    checks.append('Relative standalone manifest and real 192/512/180px icons for GitHub Pages and phone windows')
+
+    # Every term is reachable and renders all the authoritative fields.
+    for collection in collections:
         for term_id in collection['term_ids']:
-            term = next(item for item in data['terms'] if item['id'] == term_id)
+            term = by_id[term_id]
             go(f'learn/{collection["id"]}/{term_id}')
             expect(page.locator('h1')).to_have_text(term['term'])
             expect(page.locator('.definition')).to_have_text(term['university_definition'])
             expect(page.locator('.explanation p')).to_have_text(term['simple_explanation'])
             expect(page.locator('.example p')).to_have_text(term['legal_example'])
             assert term['language'] in page.locator('.term-meta').inner_text()
-            assert not page.locator('details').evaluate('(el) => el.open')
-            page.locator('summary').click()
-            expect(page.locator('details p')).to_have_text(term['memory_note'])
-    assert len(saved()['terms']) == 51
+            assert not page.locator('main details').evaluate('(el) => el.open')
+            page.locator('main summary').click()
+            expect(page.locator('main details p')).to_have_text(term['memory_note'])
+    assert len(saved()['terms']) == term_count
     assert all(term['streak'] == 0 and term['reviewed'] == 0 for term in saved()['terms'].values())
-    checks.append('All 51 terms, definitions, examples, language labels, optional notes; no reading inflation')
+    checks.append('All 51 unique terms, 46 Latin/5 Law French, full definitions/examples/notes, and no reading inflation')
 
     # Local storage and periodic recall stay within the selected collection.
     clean()
-    go('learn/1/a-priori')
+    go(f'learn/{first["id"]}/{first["term_ids"][0]}')
     for _ in range(4):
         page.get_by_role('link', name='Next', exact=True).click()
-    expect(page.locator('h1')).to_have_text('Contra')
+    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][4]]['term'])
     expect(page.get_by_role('heading', name='A moment to recall?')).to_be_visible()
     screenshot('learn')
     page.get_by_role('link', name='Try 2 questions').click()
     for question in range(2):
         term = terms[heading()]
-        assert term['id'] in data['collections'][0]['term_ids']
-        correct = page.locator(f'[data-answer="{term["id"]}"]')
+        assert term['id'] in first['term_ids']
         if question == 0:
             page.locator(f'[data-answer]:not([data-answer="{term["id"]}"])').first.click()
             expect(page.get_by_role('heading', name='Not quite. Here’s the meaning.')).to_be_visible()
@@ -107,36 +231,31 @@ with sync_playwright() as playwright:
             page.locator(f'[data-answer="{term["id"]}"]').click()
             assert saved()['terms'][term['id']]['streak'] == 0
         else:
-            correct.click()
+            page.locator(f'[data-answer="{term["id"]}"]').click()
             assert saved()['terms'][term['id']]['streak'] == 1
         click_next()
     page.get_by_role('link', name='Continue learning').click()
-    expect(page.locator('h1')).to_have_text('Contra')
+    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][4]]['term'])
     page.reload()
-    expect(page.locator('h1')).to_have_text('Contra')
-    go('legal-skills')
-    page.get_by_role('link', name='Continue Learning').click()
-    expect(page.locator('h1')).to_have_text('Contra')
+    ready()
+    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][4]]['term'])
     page.get_by_role('link', name='Previous', exact=True).click()
-    expect(page.locator('h1')).to_have_text('Ante')
+    expect(page.locator('h1')).to_have_text(by_id[first['term_ids'][3]]['term'])
     page.evaluate('document.querySelector(".skip-link").click()')
     assert page.evaluate('document.activeElement.id') == 'main'
-    assert heading() == 'Ante'
-    # Selecting a new collection must not leave its recall checkpoint blocked
-    # by an unanswered checkpoint from the previous scope.
-    go('learn/1/a-priori')
+    go(f'learn/{first["id"]}/{first["term_ids"][0]}')
     for _ in range(4):
         page.get_by_role('link', name='Next', exact=True).click()
-    go('learn/2/de-facto')
+    go(f'learn/{second["id"]}/{second["term_ids"][0]}')
     for _ in range(4):
         page.get_by_role('link', name='Next', exact=True).click()
     expect(page.get_by_role('heading', name='A moment to recall?')).to_be_visible()
-    assert set(saved()['recent']) == set(data['collections'][1]['term_ids'])
-    checks.append('Previous/Next, two-question recall, wrong-answer retry, reload, resume, and skip-link focus')
+    assert set(saved()['recent']) == set(second['term_ids'][:5])
+    checks.append('Previous/Next, collection-scoped short recall, wrong-answer retry, reload, and skip-link focus')
 
     # Keyboard-accessible flashcards repeat forgotten cards and end finitely.
     clean()
-    go('flash/1')
+    go(f'flash/{first["id"]}')
     forgotten = terms[heading()]['id']
     assert not page.locator('.flash-answer').count()
     page.get_by_role('button', name='Reveal answer').focus()
@@ -154,11 +273,12 @@ with sync_playwright() as playwright:
             struggle_messages += 1
             expect(page.get_by_text('Playful, fictional app encouragement', exact=False)).to_be_visible()
         page.locator('[data-action="next-flash"]').click()
+    collection_size = len(first['term_ids'])
     assert seen[forgotten] == 3
-    assert len(seen) == 8
-    assert sum(seen.values()) == 10
+    assert set(seen) == set(first['term_ids'])
+    assert sum(seen.values()) == collection_size + 2
     assert struggle_messages == 1
-    assert '8 cards reviewed · 7 remembered · 1 still to practise' in page.locator('.summary-card').inner_text()
+    assert f'{collection_size} cards reviewed · {collection_size - 1} remembered · 1 still to practise' in page.locator('.summary-card').inner_text()
     assert all(term['streak'] == 0 for term in saved()['terms'].values())
     screenshot('flash-summary')
     go()
@@ -171,7 +291,7 @@ with sync_playwright() as playwright:
     for run in range(2):
         go('quiz/all')
         asked = set()
-        for question in range(51):
+        for question in range(term_count):
             term_id = terms[heading()]['id']
             assert term_id not in asked
             asked.add(term_id)
@@ -184,32 +304,34 @@ with sync_playwright() as playwright:
             if question == 0:
                 screenshot(f'quiz-round-{run + 1}')
             click_next()
-        assert len(asked) == 51
-        assert '51 of 51 correct on the first try.' in page.locator('.summary-card').inner_text()
-    assert collection_messages == 1
-    assert all_messages == 1
+        assert asked == set(by_id)
+        assert f'{term_count} of {term_count} correct on the first try.' in page.locator('.summary-card').inner_text()
+    assert collection_messages == all_messages == 1
     progress = saved()
     assert all(term['streak'] == 2 for term in progress['terms'].values())
-    assert len(progress['milestones']['collections']) == 9
+    assert set(progress['milestones']['collections']) == {item['id'] for item in collections}
     assert progress['milestones']['all'] is True
-    go('legal-skills')
-    assert '51 / 51 mastered' in page.locator('body').inner_text()
+    for collection in collections:
+        go(f'collection/{collection["id"]}')
+        assert f'{len(collection["term_ids"])} mastered' in page.locator('.module-meta').inner_text()
     page.reload()
-    expect(page.get_by_text('51 / 51 mastered', exact=True)).to_be_visible()
-    go('quiz/2')
+    ready()
+    assert f'{len(collections[-1]["term_ids"])} mastered' in page.locator('.module-meta').inner_text()
+    go(f'quiz/{second["id"]}')
     for _ in range(5):
         page.locator(f'[data-answer="{terms[heading()]["id"]}"]').click()
         assert 'Mr Meyirbek' not in page.locator('body').inner_text()
         click_next()
-    checks.append('All 51 quiz terms twice, real mastery, collection/all milestones once, persisted recall progress')
+    checks.append('All 51 quiz terms twice, real mastery, three collection/all milestones once, and persisted progress')
 
     # Incorrect quiz completion and the finite practice-only retry flow.
     clean()
-    go('quiz/4')
+    retry_collection = min(collections, key=lambda collection: len(collection['term_ids']))
+    go(f'quiz/{retry_collection["id"]}')
     missed_id = terms[heading()]['id']
     page.locator(f'[data-answer]:not([data-answer="{missed_id}"])').first.click()
     click_next()
-    for _ in range(3):
+    for _ in range(len(retry_collection['term_ids']) - 1):
         page.locator(f'[data-answer="{terms[heading()]["id"]}"]').click()
         click_next()
     page.get_by_role('button', name='Retry missed terms', exact=True).click()
@@ -223,24 +345,48 @@ with sync_playwright() as playwright:
     # Narrow mobile and desktop layouts, including the longest term.
     for width in [320, 375, 390, 768, 1440]:
         page.set_viewport_size({'width': width, 'height': 844})
-        for fragment in ['home', 'legal-skills', 'collection/7', 'learn/all/novus-actus-interveniens', 'flash/all', 'quiz/all']:
+        for fragment in ['home', 'subject/public-law', 'legal-skills', f'collection/{first["id"]}',
+                         'learn/all/novus-actus-interveniens', 'flash/all', 'quiz/all']:
             go(fragment)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Overflow at {width}: {fragment}'
             assert page.locator('h1').count() == 1
-    checks.append('320, 375, 390, 768, and 1440px layouts without horizontal overflow')
+            assert page.title().startswith('Dicta')
+            assert not re.search(r'\bdicta\b', page.locator('body').inner_text())
+    checks.append('320, 375, 390, 768, and 1440px layouts without horizontal overflow or lowercase branding')
 
-    # Corrupt/partial progress, and denied storage in a separate context.
+    # Old numeric scope/milestones survive as per-term progress in new groups.
+    legacy = {'version': 1, 'terms': {
+        term_id: {'read': True, 'reviewed': 4, 'remembered': 3, 'correct': 3, 'missed': 1, 'streak': 2}
+        for term_id in first['term_ids']
+    }, 'last': {'id': first['term_ids'][0], 'scope': '1'}, 'recent': first['term_ids'][:2],
+        'milestones': {'collections': ['1', '2', '4', '9'], 'all': False}}
+    page.evaluate('([key, value]) => localStorage.setItem(key, JSON.stringify(value))', [key, legacy])
+    go(f'collection/{first["id"]}')
+    assert f'{len(first["term_ids"])} mastered' in page.locator('.module-meta').inner_text()
+    # Learning persists the normalized state without incrementing recall scores.
+    go(f'learn/{first["id"]}/{first["term_ids"][0]}')
+    migrated = saved()
+    assert migrated['terms'] == legacy['terms']
+    assert migrated['last'] == {'id': first['term_ids'][0], 'scope': first['id']}
+    assert set(migrated['recent']) == set(legacy['recent'])
+    assert not migrated['milestones']['collections'], 'Small former milestones cannot imply mastery of broader collections'
+    assert migrated['milestones']['all'] is False
+    checks.append('Old numeric scopes migrate without losing per-term read/review/recall counters or granting broad milestones')
+
+    # Corrupt/partial progress and denied storage in a separate context.
     page.evaluate('(key) => localStorage.setItem(key, "{broken")', key)
-    go('learn/1/a-priori')
-    assert saved()['terms']['a-priori']['streak'] == 0
+    go(f'learn/{first["id"]}/{first["term_ids"][0]}')
+    assert saved()['terms'][first['term_ids'][0]]['streak'] == 0
     page.evaluate('(key) => localStorage.setItem(key, JSON.stringify({terms: {"a-priori": {read: true, mastered: true}}, last: {id: "missing"}}))', key)
-    go('legal-skills')
-    assert '0 / 51 mastered' in page.locator('body').inner_text()
+    for collection in collections:
+        go(f'collection/{collection["id"]}')
+        assert '0 mastered' in page.locator('.module-meta').inner_text()
     blocked = browser.new_context(viewport={'width': 390, 'height': 844})
     blocked.add_init_script('Object.defineProperty(window, "localStorage", {get() {throw new Error("Storage denied")}})')
     blocked_page = blocked.new_page()
-    blocked_page.goto(args.base_url + '#learn/1/a-priori')
-    expect(blocked_page.locator('h1')).to_have_text('A priori')
+    monitor(blocked_page)
+    blocked_page.goto(args.base_url + f'#learn/{first["id"]}/{first["term_ids"][0]}')
+    expect(blocked_page.locator('h1')).to_have_text(by_id[first['term_ids'][0]]['term'])
     expect(blocked_page.locator('#storage-note')).to_contain_text('Progress cannot be saved')
     blocked.close()
     checks.append('Corrupt/old/incomplete progress and blocked localStorage')

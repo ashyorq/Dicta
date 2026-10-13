@@ -1,8 +1,8 @@
 import {
   loadProgress, saveProgress, markRead, markFlash, markRecall,
-  isMastered, earnedEncouragement,
-} from './progress.mjs';
-import { validateDataset, shuffle, quizChoices, createFlashSession, rateFlash, flashSummary } from './study.mjs';
+  isMastered, earnedEncouragement, consumeWelcome,
+} from './progress.mjs?v=2';
+import { validateDataset, shuffle, quizChoices, createFlashSession, rateFlash, flashSummary } from './study.mjs?v=2';
 
 const main = document.querySelector('#main');
 const storageNote = document.querySelector('#storage-note');
@@ -11,7 +11,9 @@ const plural = (number, noun) => `${number} ${noun}${number === 1 ? '' : 's'}`;
 const diagonalArrow = '<svg class="arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12" stroke="currentColor" stroke-width="1.5"/></svg>';
 let data, byId, state, storage, flash, quiz;
 let activeView = '', learnDone = false;
+let welcomeChecked = false;
 const sessionMessages = new Set();
+const otherSubjects = { 'public-law': 'Public Law', 'civil-law': 'Civil Law', 'tort-law': 'Tort Law' };
 
 function persist() {
   if (!saveProgress(storage, state)) {
@@ -32,54 +34,46 @@ const button = (label, action, secondary = false) => `<button class="button${sec
 const linkButton = (label, href, secondary = false) => `<a class="button${secondary ? ' secondary' : ''}" href="${href}">${label}</a>`;
 const encouragement = message => message ? `<aside class="encouragement" aria-label="Fictional app encouragement"><p>${escape(message)}</p><small>Playful, fictional app encouragement — not a quotation or a message from your teacher.</small></aside>` : '';
 const masteredCount = ids => ids.filter(id => isMastered(state, id)).length;
-const masteryNote = '<p class="mastery-note">Mastery means two correct quiz or short recall answers in a row. Reading and self-assessed flashcards do not count. Correcting an answer on an immediate retry is practice, not mastery.</p>';
+const masteryNote = '<details class="progress-info"><summary>How progress works</summary><p>Mastery means two correct quiz or short recall answers in a row. Reading, flashcard self-ratings, and immediate retries do not add mastery.</p></details>';
 
 function modeLinks(scope) {
-  return `<div class="modes" aria-label="Study modes">
-    <a class="mode" href="#learn/${scope}/${scopeIds(scope)[0]}"><span class="mode-label">Learn ${diagonalArrow}</span><p>Understand one term at a time.</p></a>
-    <a class="mode" href="#flash/${scope}"><span class="mode-label">Flashcards ${diagonalArrow}</span><p>Recall, reveal, and revisit.</p></a>
-    <a class="mode" href="#quiz/${scope}"><span class="mode-label">Quiz ${diagonalArrow}</span><p>Put the meanings to the test.</p></a>
-  </div>`;
+  return `<nav class="modes" aria-label="Study modes">
+    <a class="mode" href="#learn/${scope}/${scopeIds(scope)[0]}"><span class="mode-label">Learn ${diagonalArrow}</span></a>
+    <a class="mode" href="#flash/${scope}"><span class="mode-label">Flashcards ${diagonalArrow}</span></a>
+    <a class="mode" href="#quiz/${scope}"><span class="mode-label">Quiz ${diagonalArrow}</span></a>
+  </nav>`;
 }
 
 function homeView() {
-  return `<section class="home-hero"><p class="eyebrow">Your study space</p>
-    <h1 tabindex="-1">A little practice.<br>A lasting understanding.</h1>
-    <p class="hero-description">Make the language of law feel familiar.<br>One term, one small moment of recall at a time.</p>
-  </section>
-  <div class="section-label"><h2>Choose a subject</h2><span>01 / 04 available</span></div>
-  <div class="subject-grid">
-    <a class="subject active" href="#legal-skills"><span class="subject-number" aria-hidden="true">01</span><div><h2>Legal Skills</h2><p class="small">Latin &amp; Law French · 51 terms</p></div>${diagonalArrow}</a>
-    ${['Public Law', 'Civil Law', 'Tort Law'].map((name, index) => `<article class="subject"><span class="subject-number" aria-hidden="true">0${index + 2}</span><div><h2>${name}</h2><p class="small">Coming soon</p></div></article>`).join('')}
-  </div><p class="home-footnote">Start with Legal Skills. The rest can wait.</p>`;
-}
-
-function continueHref() {
-  if (!state.last) return `#learn/all/${scopeIds('all')[0]}`;
-  const { id, scope } = state.last;
-  if (state.recent.length >= 5 && state.recent.filter(term => scopeIds(scope).includes(term)).length >= 2) return `#recall/${scope}`;
-  return `#learn/${scope}/${id}`;
+  const showWelcome = !welcomeChecked && consumeWelcome(storage);
+  welcomeChecked = true;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  return `<div class="home-content">
+    ${showWelcome ? '<section class="welcome"><h1 tabindex="-1">A little practice.<br>A lasting understanding.</h1></section>' : '<h1 class="sr-only" tabindex="-1">Subjects</h1>'}
+    <nav class="subject-grid" aria-label="Subjects">
+      <a class="subject active" href="#legal-skills"><h2>Legal Skills</h2>${diagonalArrow}</a>
+      ${Object.entries(otherSubjects).map(([id, name]) => `<a class="subject" href="#subject/${id}"><h2>${name}</h2>${diagonalArrow}</a>`).join('')}
+    </nav>
+    ${standalone ? '' : `<details class="install-help"><summary>Add Dicta to your phone</summary><div class="install-steps"><h2>iPhone · Safari</h2><ol><li>Open this website in Safari and tap <strong>Share</strong>.</li><li>Choose <strong>Add to Home Screen</strong>.</li><li>Keep <strong>Open as Web App</strong> enabled if it appears, then tap <strong>Add</strong>.</li></ol><h2>Android · Chrome</h2><p>Open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</p><p>Open Dicta from its new Home Screen icon to study in a separate window.</p></div></details>`}
+  </div>`;
 }
 
 function moduleView() {
-  return `${back('#home', 'All subjects')}
-    <section class="module-head"><p class="eyebrow">Legal Skills · Vocabulary</p>
-      <h1 tabindex="-1">Latin and Law<br>French Terms</h1>
-      <p class="module-meta">51 terms · 9 collections · 46 Latin · 5 Law French</p>
-    </section>
-    <section class="continue-card"><div><h2>${state.last ? 'Pick up where you left off.' : 'A good place to begin.'}</h2><p>${state.last ? `Last viewed: ${escape(byId.get(state.last.id).term)}${state.recent.length >= 5 ? ' · A short recall check is ready.' : ''}` : 'Start with Legal foundations. Take it at your own pace.'}</p></div>${linkButton('Continue Learning <span aria-hidden="true">→</span>', continueHref())}</section>
-    <div class="module-layout"><section><div class="section-label"><h2>Study Your Way</h2></div>${modeLinks('all')}</section>
-    <section><div class="section-label"><h2>The collections</h2><span>${masteredCount(scopeIds('all'))} / 51 mastered</span></div>
-      <ol class="collections">${data.collections.map((collection, index) => `<li><a class="collection-row" href="#collection/${collection.id}"><span class="collection-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div class="collection-info"><h3>${escape(collection.title)}</h3><p>${plural(collection.term_ids.length, 'term')} · ${masteredCount(collection.term_ids)} mastered</p></div><span class="arrow" aria-hidden="true">→</span></a></li>`).join('')}</ol>
-    </section></div>${masteryNote}`;
+  return `<div class="reading-width">${back('#home', 'All subjects')}
+    <h1 class="module-title" tabindex="-1">Latin and Law French Terms</h1>
+    <ol class="collections">${data.collections.map(collection => `<li><a class="collection-row" href="#collection/${collection.id}"><div class="collection-info"><h2>${escape(collection.title)}</h2><p>${plural(collection.term_ids.length, 'term')}</p></div><span class="arrow" aria-hidden="true">→</span></a></li>`).join('')}</ol>
+  </div>`;
+}
+
+function subjectView(id) {
+  return `<div class="reading-width">${back('#home', 'All subjects')}<h1 tabindex="-1">${escape(otherSubjects[id])}</h1><p class="coming-soon">Coming soon</p></div>`;
 }
 
 function collectionView(scope) {
   const collection = data.collections.find(item => String(item.id) === scope);
-  return `<div class="reading-width">${back('#legal-skills', 'All collections')}<p class="eyebrow">Legal Skills · Collection ${scope} of 9</p>
+  return `<div class="reading-width">${back('#legal-skills', 'All collections')}
     <h1 tabindex="-1">${escape(collection.title)}</h1><p class="module-meta">${plural(collection.term_ids.length, 'term')} · ${masteredCount(collection.term_ids)} mastered</p>
-    <p class="hero-description" style="margin-block: 24px">Choose a way to study this collection.</p>${modeLinks(scope)}
-    <div class="section-label"><h2>In this collection</h2></div><div class="term-list">${collection.term_ids.map(id => `<span>${escape(byId.get(id).term)}</span>`).join('')}</div>${masteryNote}</div>`;
+    ${modeLinks(scope)}${masteryNote}</div>`;
 }
 
 function definitionView(term) {
@@ -168,6 +162,7 @@ function render(focus = true) {
   const { view, scope, id } = routeParts();
   let content;
   if (view === 'legal-skills') content = moduleView();
+  else if (view === 'subject' && otherSubjects[location.hash.split('/')[1]]) content = subjectView(location.hash.split('/')[1]);
   else if (view === 'collection' && scope !== 'all') content = collectionView(scope);
   else if (view === 'learn') content = learnView(scope, id);
   else if (view === 'flash') {
@@ -184,7 +179,7 @@ function render(focus = true) {
   activeView = view;
   main.innerHTML = content;
   main.setAttribute('aria-busy', 'false');
-  document.title = `dicta. — ${view === 'home' ? 'A quiet place to learn law' : view === 'legal-skills' ? 'Legal Skills' : scopeTitle(scope)}`;
+  document.title = view === 'home' ? 'Dicta' : `Dicta — ${view === 'legal-skills' ? 'Legal Skills' : view === 'subject' ? otherSubjects[location.hash.split('/')[1]] || 'Subjects' : scopeTitle(scope)}`;
   if (focus) {
     main.querySelector('h1')?.focus({ preventScroll: true });
     window.scrollTo(0, 0);
@@ -251,7 +246,7 @@ window.addEventListener('hashchange', () => { if (data) { learnDone = false; ren
 
 async function initialise() {
   try {
-    const response = await fetch('./dicta_terms.json');
+    const response = await fetch('./dicta_terms.json?v=2');
     if (!response.ok) throw new Error(`Dataset request failed: ${response.status}`);
     data = validateDataset(await response.json());
     byId = new Map(data.terms.map(term => [term.id, term]));
@@ -262,7 +257,7 @@ async function initialise() {
     render(false);
   } catch (error) {
     main.setAttribute('aria-busy', 'false');
-    main.innerHTML = '<h1 tabindex="-1">Your study space couldn’t open.</h1><p>The vocabulary file could not be loaded. Please serve the complete Dicta folder over HTTP or use its GitHub Pages site, then try again.</p><button class="button" id="reload" type="button">Try again</button>';
+    main.innerHTML = '<h1 tabindex="-1">Dicta couldn’t open.</h1><p>The vocabulary file could not be loaded. Please serve the complete Dicta folder over HTTP or use its GitHub Pages site, then try again.</p><button class="button" id="reload" type="button">Try again</button>';
     document.querySelector('#reload').addEventListener('click', () => location.reload());
     console.error('Dicta could not initialise:', error);
   }

@@ -1,0 +1,631 @@
+{
+  "project": "Dicta",
+  "module": "Legal Skills / Latin and Law French Terms",
+  "source": "User-provided latin_law_french.pdf, page 1",
+  "metadata": {
+    "total_terms": 51,
+    "latin_terms": 46,
+    "law_french_terms": 5,
+    "collections": 9,
+    "note": "university_definition reproduces the course handout; other explanatory fields are original supplementary study aids, not sourced from the handout; review with lecturer for jurisdiction-specific nuances."
+  },
+  "collections": [
+    {
+      "id": 1,
+      "title": "Legal foundations",
+      "term_ids": [
+        "a-priori",
+        "ab-initio",
+        "ad-hoc",
+        "ante",
+        "contra",
+        "ergo",
+        "ex-post-facto",
+        "ipso-facto"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Law and reality",
+      "term_ids": [
+        "de-facto",
+        "de-jure",
+        "de-novo",
+        "locus",
+        "ultra-vires"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Courts and precedent",
+      "term_ids": [
+        "dictum",
+        "obiter-dictum",
+        "ratio-decidendi",
+        "stare-decisis",
+        "per-curiam",
+        "per-incuriam",
+        "prima-facie",
+        "semble"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Legal interpretation",
+      "term_ids": [
+        "ejusdem-generis",
+        "noscitur-a-sociis",
+        "contra-proferentem",
+        "lacuna"
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Criminal law",
+      "term_ids": [
+        "actus-reus",
+        "mens-rea",
+        "doli-incapax",
+        "mala-in-se",
+        "mala-prohibita",
+        "modus-operandi",
+        "novus-actus-interveniens"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Civil law and tort",
+      "term_ids": [
+        "res-ipsa-loquitur",
+        "quantum",
+        "bona-fide",
+        "locus-standi"
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Contracts and property",
+      "term_ids": [
+        "consensus-ad-idem",
+        "non-est-factum",
+        "chose",
+        "inter-vivos",
+        "cy-pres",
+        "pari-passu"
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Court procedures",
+      "term_ids": [
+        "ex-parte",
+        "habeas-corpus",
+        "in-camera",
+        "res-gestae",
+        "voir-dire"
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Other legal expressions",
+      "term_ids": [
+        "erratum",
+        "ex-gratia",
+        "pro-bono",
+        "laches"
+      ]
+    }
+  ],
+  "terms": [
+    {
+      "id": "a-priori",
+      "term": "A priori",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "From earlier",
+      "simple_explanation": "Reasoning from what is already known or assumed.",
+      "legal_example": "The argument proceeded a priori from the accepted legal principle.",
+      "memory_note": "Often contrasted with reasoning from observed facts."
+    },
+    {
+      "id": "ab-initio",
+      "term": "Ab initio",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "From the beginning",
+      "simple_explanation": "From the very start of something.",
+      "legal_example": "The agreement was treated as void ab initio.",
+      "memory_note": "The expression concerns the point in time at which a legal status applies."
+    },
+    {
+      "id": "ad-hoc",
+      "term": "Ad hoc",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "For this",
+      "simple_explanation": "Created for a particular purpose or situation.",
+      "legal_example": "The parties appointed an ad hoc committee to consider the dispute.",
+      "memory_note": "An ad hoc arrangement is typically specific rather than permanent."
+    },
+    {
+      "id": "ante",
+      "term": "Ante",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "Before",
+      "simple_explanation": "Before a specified event or time.",
+      "legal_example": "The court considered the parties' ante-contractual correspondence.",
+      "memory_note": "Often appears as part of a longer expression."
+    },
+    {
+      "id": "contra",
+      "term": "Contra",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "Against",
+      "simple_explanation": "In opposition to something.",
+      "legal_example": "The argument was made contra the proposed interpretation.",
+      "memory_note": "More often seen within longer legal phrases."
+    },
+    {
+      "id": "ergo",
+      "term": "Ergo",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "Therefore",
+      "simple_explanation": "So; as a result of the preceding reasoning.",
+      "legal_example": "The duty was breached; ergo, liability may follow if the other elements are met.",
+      "memory_note": "A transition in an argument, not a legal rule."
+    },
+    {
+      "id": "ex-post-facto",
+      "term": "Ex post facto",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "After the fact",
+      "simple_explanation": "Done or considered after an event occurred.",
+      "legal_example": "An ex post facto justification was offered for the decision.",
+      "memory_note": "The expression can take on a more specific meaning in constitutional contexts."
+    },
+    {
+      "id": "ipso-facto",
+      "term": "Ipso facto",
+      "language": "Latin",
+      "collection": "Legal foundations",
+      "university_definition": "In and of itself",
+      "simple_explanation": "By that very fact, without needing another step.",
+      "legal_example": "A breach does not ipso facto terminate every contract.",
+      "memory_note": "The outcome still depends on the governing law and facts."
+    },
+    {
+      "id": "de-facto",
+      "term": "De facto",
+      "language": "Latin",
+      "collection": "Law and reality",
+      "university_definition": "In fact",
+      "simple_explanation": "Existing in practice, regardless of formal legal status.",
+      "legal_example": "She acted as the de facto manager even without a formal appointment.",
+      "memory_note": "Compare with de jure."
+    },
+    {
+      "id": "de-jure",
+      "term": "De jure",
+      "language": "Latin",
+      "collection": "Law and reality",
+      "university_definition": "In law",
+      "simple_explanation": "Recognised or established as a matter of law.",
+      "legal_example": "He was the de jure director named in the company's records.",
+      "memory_note": "Compare with de facto."
+    },
+    {
+      "id": "de-novo",
+      "term": "De novo",
+      "language": "Latin",
+      "collection": "Law and reality",
+      "university_definition": "Anew",
+      "simple_explanation": "Starting or considering something afresh.",
+      "legal_example": "The tribunal considered the issue de novo.",
+      "memory_note": "The precise scope of a de novo review depends on the procedure."
+    },
+    {
+      "id": "locus",
+      "term": "Locus",
+      "language": "Latin",
+      "collection": "Law and reality",
+      "university_definition": "Place",
+      "simple_explanation": "A location or place.",
+      "legal_example": "The dispute concerned the locus of the alleged incident.",
+      "memory_note": "Not the same as locus standi."
+    },
+    {
+      "id": "ultra-vires",
+      "term": "Ultra vires",
+      "language": "Latin",
+      "collection": "Law and reality",
+      "university_definition": "Beyond its powers (judicial review)",
+      "simple_explanation": "Outside the legal authority or powers granted to a body.",
+      "legal_example": "The claimant argued that the public authority acted ultra vires.",
+      "memory_note": "The expression can also appear in company law; the handout specifically mentions judicial review."
+    },
+    {
+      "id": "dictum",
+      "term": "Dictum",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "(A thing which is) said",
+      "simple_explanation": "A statement or observation, especially by a judge.",
+      "legal_example": "A judge made a dictum about the broader legal principle.",
+      "memory_note": "Dictum is singular; dicta is plural."
+    },
+    {
+      "id": "obiter-dictum",
+      "term": "Obiter dictum",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "Something said in passing (precedent)",
+      "simple_explanation": "A judicial observation not essential to the court's decision.",
+      "legal_example": "The judge's comment on an unrelated hypothetical was obiter dictum.",
+      "memory_note": "Generally persuasive rather than binding; compare with ratio decidendi."
+    },
+    {
+      "id": "ratio-decidendi",
+      "term": "Ratio decidendi",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "Reason for the decision (precedent)",
+      "simple_explanation": "The necessary legal reasoning underlying a decision.",
+      "legal_example": "The lower court applied the ratio decidendi of a binding precedent.",
+      "memory_note": "The binding element of a precedent, subject to the rules of precedent."
+    },
+    {
+      "id": "stare-decisis",
+      "term": "Stare decisis",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "To stand by things decided (precedent)",
+      "simple_explanation": "The principle of adhering to applicable precedents.",
+      "legal_example": "The court followed the earlier decision under stare decisis.",
+      "memory_note": "Supports consistency while allowing recognised exceptions."
+    },
+    {
+      "id": "per-curiam",
+      "term": "Per curiam",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "A decision of the whole court",
+      "simple_explanation": "A judgment issued in the name of the court rather than attributed to one judge.",
+      "legal_example": "The appellate court delivered a short per curiam opinion.",
+      "memory_note": "Usage varies by jurisdiction; preserve your course definition."
+    },
+    {
+      "id": "per-incuriam",
+      "term": "Per incuriam",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "In neglect (precedent)",
+      "simple_explanation": "A decision reached in disregard of a relevant binding rule or authority.",
+      "legal_example": "Counsel argued that the earlier judgment was decided per incuriam.",
+      "memory_note": "A narrow exception; not simply a synonym for a wrong decision."
+    },
+    {
+      "id": "prima-facie",
+      "term": "Prima facie",
+      "language": "Latin",
+      "collection": "Courts and precedent",
+      "university_definition": "On the face of it",
+      "simple_explanation": "Appearing to be the case on the initial evidence.",
+      "legal_example": "The claimant established a prima facie case for relief.",
+      "memory_note": "Initial evidence may still be rebutted."
+    },
+    {
+      "id": "semble",
+      "term": "Semble",
+      "language": "Law French",
+      "collection": "Courts and precedent",
+      "university_definition": "It appears to be",
+      "simple_explanation": "Signals a tentative legal proposition rather than a definitive holding.",
+      "legal_example": "The law report used semble before a proposition not firmly decided.",
+      "memory_note": "A Law French term used in legal reports."
+    },
+    {
+      "id": "ejusdem-generis",
+      "term": "Ejusdem generis",
+      "language": "Latin",
+      "collection": "Legal interpretation",
+      "university_definition": "Of the same kind (statutory interpretation)",
+      "simple_explanation": "A rule that general words can take their meaning from the specific words preceding them.",
+      "legal_example": "After listing cars, vans and buses, a statute's general reference to other vehicles may be read ejusdem generis.",
+      "memory_note": "The context and wording determine whether the rule applies."
+    },
+    {
+      "id": "noscitur-a-sociis",
+      "term": "Noscitur a sociis",
+      "language": "Latin",
+      "collection": "Legal interpretation",
+      "university_definition": "Known by the company it keeps (statutory interpretation)",
+      "simple_explanation": "A word's meaning may be informed by neighbouring words.",
+      "legal_example": "The court used noscitur a sociis to interpret an ambiguous term in the statute.",
+      "memory_note": "A contextual aid, not an automatic answer."
+    },
+    {
+      "id": "contra-proferentem",
+      "term": "Contra proferentem",
+      "language": "Latin",
+      "collection": "Legal interpretation",
+      "university_definition": "Against the party who put the term forward (contract law)",
+      "simple_explanation": "An ambiguous contractual term may be read against the party who proposed it.",
+      "legal_example": "The ambiguity was interpreted contra proferentem against the party relying on the clause.",
+      "memory_note": "The modern scope of the principle depends on context and applicable law."
+    },
+    {
+      "id": "lacuna",
+      "term": "Lacuna",
+      "language": "Latin",
+      "collection": "Legal interpretation",
+      "university_definition": "Gap",
+      "simple_explanation": "An omission or gap in a legal text or rule.",
+      "legal_example": "Counsel identified a lacuna in the statutory scheme.",
+      "memory_note": "Not every apparent gap allows a court to supply missing words."
+    },
+    {
+      "id": "actus-reus",
+      "term": "Actus reus",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "Guilty act (criminal law)",
+      "simple_explanation": "The external elements of a criminal offence.",
+      "legal_example": "The prosecution had to establish the actus reus of the offence.",
+      "memory_note": "May include conduct, circumstances or consequences; not always a positive act."
+    },
+    {
+      "id": "mens-rea",
+      "term": "Mens rea",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "Guilty mind (criminal law)",
+      "simple_explanation": "The mental element required for an offence.",
+      "legal_example": "The jury considered whether the accused had the requisite mens rea.",
+      "memory_note": "Specific mental requirements vary by offence."
+    },
+    {
+      "id": "doli-incapax",
+      "term": "Doli incapax",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "Incapable of guilt (criminal law)",
+      "simple_explanation": "An expression concerning a child's capacity for criminal responsibility.",
+      "legal_example": "The historical doctrine of doli incapax was discussed in class.",
+      "memory_note": "Modern application varies by jurisdiction and legislation."
+    },
+    {
+      "id": "mala-in-se",
+      "term": "Mala in se",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "Wrong in itself",
+      "simple_explanation": "Conduct considered inherently wrongful.",
+      "legal_example": "The lecturer contrasted offences mala in se with regulatory offences.",
+      "memory_note": "A classification of wrongdoing, not a substitute for statutory elements."
+    },
+    {
+      "id": "mala-prohibita",
+      "term": "Mala prohibita",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "Wrong because it has been prohibited",
+      "simple_explanation": "Conduct treated as wrongful because the law prohibits it.",
+      "legal_example": "A regulatory breach was described as mala prohibita.",
+      "memory_note": "Often contrasted with mala in se."
+    },
+    {
+      "id": "modus-operandi",
+      "term": "Modus operandi",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "Way of doing things (usually used in relation to crime)",
+      "simple_explanation": "A characteristic method of acting.",
+      "legal_example": "The investigator compared the modus operandi in two incidents.",
+      "memory_note": "Not limited to crime, though the handout emphasizes that use."
+    },
+    {
+      "id": "novus-actus-interveniens",
+      "term": "Novus actus interveniens",
+      "language": "Latin",
+      "collection": "Criminal law",
+      "university_definition": "A new act intervenes (criminal law; tort law)",
+      "simple_explanation": "A new intervening event that may break the chain of causation.",
+      "legal_example": "The court considered whether a third party's act was a novus actus interveniens.",
+      "memory_note": "Whether causation is broken is a legal question, not automatic."
+    },
+    {
+      "id": "res-ipsa-loquitur",
+      "term": "Res ipsa loquitur",
+      "language": "Latin",
+      "collection": "Civil law and tort",
+      "university_definition": "The thing speaks for itself (tort law)",
+      "simple_explanation": "An evidential principle allowing negligence to be inferred in suitable circumstances.",
+      "legal_example": "After equipment fell from a controlled area, the claimant raised res ipsa loquitur.",
+      "memory_note": "It is not an automatic finding of liability."
+    },
+    {
+      "id": "quantum",
+      "term": "Quantum",
+      "language": "Latin",
+      "collection": "Civil law and tort",
+      "university_definition": "Amount",
+      "simple_explanation": "The amount of a claim, damages or other sum.",
+      "legal_example": "The parties disputed the quantum of damages.",
+      "memory_note": "Often appears in the phrase quantum of damages."
+    },
+    {
+      "id": "bona-fide",
+      "term": "Bona fide",
+      "language": "Latin",
+      "collection": "Civil law and tort",
+      "university_definition": "In good faith",
+      "simple_explanation": "Genuine and undertaken honestly.",
+      "legal_example": "The buyer argued that she had acted bona fide.",
+      "memory_note": "Its precise legal effect depends on the rule or statute."
+    },
+    {
+      "id": "locus-standi",
+      "term": "Locus standi",
+      "language": "Latin",
+      "collection": "Civil law and tort",
+      "university_definition": "Right to bring a case",
+      "simple_explanation": "The legal standing needed to commence a particular proceeding.",
+      "legal_example": "The court examined whether the applicant had locus standi.",
+      "memory_note": "Standing rules differ by type of claim and jurisdiction."
+    },
+    {
+      "id": "consensus-ad-idem",
+      "term": "Consensus ad idem",
+      "language": "Latin",
+      "collection": "Contracts and property",
+      "university_definition": "Agreement to the same (contract law)",
+      "simple_explanation": "A meeting of minds as to the agreement's essential terms.",
+      "legal_example": "The parties disputed whether there was consensus ad idem on price.",
+      "memory_note": "Contract formation is generally tested objectively in English law."
+    },
+    {
+      "id": "non-est-factum",
+      "term": "Non est factum",
+      "language": "Latin",
+      "collection": "Contracts and property",
+      "university_definition": "Not my deed",
+      "simple_explanation": "A narrow defence for someone who signed a fundamentally different document from what they believed it to be.",
+      "legal_example": "The signatory pleaded non est factum when challenging the document.",
+      "memory_note": "Subject to stringent conditions; not a general escape from a bad bargain."
+    },
+    {
+      "id": "chose",
+      "term": "Chose",
+      "language": "Law French",
+      "collection": "Contracts and property",
+      "university_definition": "A thing (usually used in ‘chose in action’ or ‘chose in possession’)",
+      "simple_explanation": "A form of property or thing, often classified as a chose in action or in possession.",
+      "legal_example": "A debt can be treated as a chose in action.",
+      "memory_note": "The Law French noun is usually encountered within a longer phrase."
+    },
+    {
+      "id": "inter-vivos",
+      "term": "Inter vivos",
+      "language": "Latin",
+      "collection": "Contracts and property",
+      "university_definition": "Between the living (trusts)",
+      "simple_explanation": "Taking effect between living persons, rather than by will on death.",
+      "legal_example": "The settlor created an inter vivos trust.",
+      "memory_note": "Compare with testamentary dispositions."
+    },
+    {
+      "id": "cy-pres",
+      "term": "Cy-près",
+      "language": "Law French",
+      "collection": "Contracts and property",
+      "university_definition": "‘As near as possible’ (trusts)",
+      "simple_explanation": "A principle allowing certain charitable gifts to be applied to a purpose as close as possible to the original.",
+      "legal_example": "The charity sought a cy-près scheme after its original purpose became impracticable.",
+      "memory_note": "Particular requirements govern its use in charity law."
+    },
+    {
+      "id": "pari-passu",
+      "term": "Pari passu",
+      "language": "Latin",
+      "collection": "Contracts and property",
+      "university_definition": "Of equal rank",
+      "simple_explanation": "On an equal footing or with equal priority.",
+      "legal_example": "The unsecured creditors ranked pari passu in the distribution.",
+      "memory_note": "Equal ranking does not always imply equal cash amounts."
+    },
+    {
+      "id": "ex-parte",
+      "term": "Ex parte",
+      "language": "Latin",
+      "collection": "Court procedures",
+      "university_definition": "Done for a party (judicial review)",
+      "simple_explanation": "A proceeding or application involving one party, historically used in case names and procedural descriptions.",
+      "legal_example": "A party made an urgent ex parte application without notice to the opponent.",
+      "memory_note": "Meaning and terminology depend on procedural context; do not assume all such applications are appropriate."
+    },
+    {
+      "id": "habeas-corpus",
+      "term": "Habeas corpus",
+      "language": "Latin",
+      "collection": "Court procedures",
+      "university_definition": "‘May you have the body’: a writ to challenge unlawful detention",
+      "simple_explanation": "A procedure to require justification of a person's detention before a court.",
+      "legal_example": "The detainee's lawyer applied for habeas corpus to challenge the detention.",
+      "memory_note": "A remedy concerned with lawfulness of detention, not necessarily innocence."
+    },
+    {
+      "id": "in-camera",
+      "term": "In camera",
+      "language": "Latin",
+      "collection": "Court procedures",
+      "university_definition": "In private",
+      "simple_explanation": "A hearing held privately rather than in open court.",
+      "legal_example": "The judge directed that the sensitive evidence be heard in camera.",
+      "memory_note": "Privacy depends on applicable procedural rules."
+    },
+    {
+      "id": "res-gestae",
+      "term": "Res gestae",
+      "language": "Latin",
+      "collection": "Court procedures",
+      "university_definition": "Things done",
+      "simple_explanation": "A term sometimes used for statements or events closely connected to the matter in issue.",
+      "legal_example": "The prosecution argued that the spontaneous statement fell within a res gestae exception.",
+      "memory_note": "Its evidential use requires more detail than the literal translation."
+    },
+    {
+      "id": "voir-dire",
+      "term": "Voir dire",
+      "language": "Law French",
+      "collection": "Court procedures",
+      "university_definition": "‘To say the truth’ (mostly used for decisions on admissibility of evidence)",
+      "simple_explanation": "A separate court inquiry, often to decide whether evidence is admissible.",
+      "legal_example": "The judge held a voir dire before ruling on the disputed confession.",
+      "memory_note": "Usage varies by jurisdiction; in the US the term commonly concerns jury selection."
+    },
+    {
+      "id": "erratum",
+      "term": "Erratum",
+      "language": "Latin",
+      "collection": "Other legal expressions",
+      "university_definition": "Made in error",
+      "simple_explanation": "A correction of an error in a published text.",
+      "legal_example": "The report issued an erratum correcting the date.",
+      "memory_note": "An erratum is the correction or notice of error; the handout gives a brief gloss."
+    },
+    {
+      "id": "ex-gratia",
+      "term": "Ex gratia",
+      "language": "Latin",
+      "collection": "Other legal expressions",
+      "university_definition": "Done as a favour",
+      "simple_explanation": "Given voluntarily without admitting a legal obligation.",
+      "legal_example": "The employer offered an ex gratia payment to settle the matter.",
+      "memory_note": "Not necessarily an admission of liability."
+    },
+    {
+      "id": "pro-bono",
+      "term": "Pro bono",
+      "language": "Latin",
+      "collection": "Other legal expressions",
+      "university_definition": "Without charging a fee",
+      "simple_explanation": "Legal work provided without a professional fee.",
+      "legal_example": "The solicitor represented the client pro bono.",
+      "memory_note": "Often shortened from pro bono publico."
+    },
+    {
+      "id": "laches",
+      "term": "Laches",
+      "language": "Law French",
+      "collection": "Other legal expressions",
+      "university_definition": "Delay",
+      "simple_explanation": "An equitable doctrine in which unreasonable delay can affect relief.",
+      "legal_example": "The defendant argued that laches should bar the requested equitable remedy.",
+      "memory_note": "Mere passage of time is not necessarily sufficient."
+    }
+  ]
+}
